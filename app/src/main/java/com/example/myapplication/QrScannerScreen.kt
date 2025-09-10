@@ -41,6 +41,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.room.Room
+import com.example.myapplication.resultscan.ResultMultiQrActivity
 import com.example.myapplication.resultscan.ResultScanActivity
 import com.example.myapplication.room.AppDatabase
 import com.example.myapplication.room.dao.QrScanDao
@@ -115,17 +116,18 @@ fun QrScannerScreen() {
                                 processImageProxy(scanner, imageProxy, isBatchScan, ctx, scannedQRs) { isBatch, qrValue, qrUri ->
                                     if (!isBatch) {
                                         isScanning = false
+                                        if (qrValue != null && qrUri != null) {
+
+                                            val intent = Intent(ctx, ResultScanActivity::class.java)
+                                            intent.putExtra("scan_result", qrValue)
+                                            intent.putExtra("scan_type", Barcode.TYPE_TEXT) // Update type if needed
+                                            intent.putExtra("qr_image_uri", qrUri.toString())
+                                            ctx.startActivity(intent)
+                                        }
                                     } else if (qrValue != null) {
                                         latestQR = Pair(scannedQRs.size, qrValue)
                                     }
-                                    if (qrValue != null && qrUri != null) {
 
-                                        val intent = Intent(ctx, ResultScanActivity::class.java)
-                                        intent.putExtra("scan_result", qrValue)
-                                        intent.putExtra("scan_type", Barcode.TYPE_TEXT) // Update type if needed
-                                        intent.putExtra("qr_image_uri", qrUri.toString())
-                                        ctx.startActivity(intent)
-                                    }
                                 }
                             } else {
                                 imageProxy.close()
@@ -176,8 +178,8 @@ fun QrScannerScreen() {
                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                         )
                         IconButton(onClick = {
-                            val intent = Intent(context, ResultScanActivity::class.java)
-                            intent.putExtra("scan_result", latestQR!!.second)
+                            val intent = Intent(context, ResultMultiQrActivity::class.java)
+                            intent.putStringArrayListExtra("scan_results", ArrayList(scannedQRs))
                             context.startActivity(intent)
                         }) {
                             Icon(

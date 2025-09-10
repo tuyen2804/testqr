@@ -17,6 +17,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <activity
+            android:name=".resultscan.ResultMultiQrDetailActivity"
+            android:exported="false"
+            android:label="@string/title_activity_result_multi_qr_detail"
+            android:theme="@style/Theme.MyApplication" />
+        <activity
+            android:name=".resultscan.ResultMultiQrActivity"
+            android:exported="false"
+            android:label="@string/title_activity_result_multi_qr"
+            android:theme="@style/Theme.MyApplication" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -26,6 +37,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
         <activity
             android:name=".resultscan.ResultScanActivity"
             android:exported="false"
