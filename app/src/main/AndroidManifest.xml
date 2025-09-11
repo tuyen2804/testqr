@@ -7,6 +7,12 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:ignore="PhotoAndVideoPolicy" />
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"
+        tools:ignore="ScopedStorage" />
 
     <application
         android:allowBackup="true"
@@ -17,6 +23,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <activity
+            android:name=".resultscan.ResultMultiQrHostActivity"
+            android:exported="false"
+            android:label="@string/title_activity_result_multi_qr_host"
+            android:theme="@style/Theme.MyApplication" />
         <activity
             android:name=".resultscan.ResultMultiQrDetailActivity"
             android:exported="false"
@@ -40,6 +51,11 @@
 
         <activity
             android:name=".resultscan.ResultScanActivity"
+            android:exported="false"
+            android:label="@string/title_activity_result_scan"
+            android:theme="@style/Theme.MyApplication" />
+        <activity
+            android:name=".resultscan.ResultDeleteMultiQrActivity"
             android:exported="false"
             android:label="@string/title_activity_result_scan"
             android:theme="@style/Theme.MyApplication" />

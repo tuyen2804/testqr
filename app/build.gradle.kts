@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
+    id ("kotlin-parcelize")
 
 }
 
@@ -99,4 +100,6 @@ dependencies {
 
     // optional - Paging 3 Integration
     implementation("androidx.room:room-paging:$room_version")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0") // Or the latest version
+
 }

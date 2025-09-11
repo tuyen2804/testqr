@@ -1,18 +1,19 @@
-package com.example.myapplication
+package com.example.myapplication.scan
 
 import android.Manifest
+import android.R
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.ImageFormat
 import android.net.Uri
 import android.util.Log
+import android.util.Size
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -39,44 +40,86 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import androidx.room.Room
-import com.example.myapplication.resultscan.ResultMultiQrActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.example.myapplication.model.QrCodeInfo
+import com.example.myapplication.resultscan.ResultMultiQrHostActivity
 import com.example.myapplication.resultscan.ResultScanActivity
 import com.example.myapplication.room.AppDatabase
-import com.example.myapplication.room.dao.QrScanDao
-import com.example.myapplication.room.entity.QrScanEntity
 import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import java.io.File
-import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
 @Composable
 fun QrScannerScreen() {
+
     var isBatchScan by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(true) }
     val context = LocalContext.current
+    val dao = remember {
+        AppDatabase.getInstance(context).qrScanDao()
+    }
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED
         )
     }
+    var isFlashLight by remember { mutableStateOf(false) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var zoom by remember { mutableStateOf(0f) }
-    val scannedQRs by remember { mutableStateOf(mutableSetOf<String>()) }
+    val scannedQRs by remember { mutableStateOf(mutableListOf<QrCodeInfo>()) } // Sử dụng List thay vì Set
     var latestQR by remember { mutableStateOf<Pair<Int, String>?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { granted -> hasPermission = granted }
     )
-
+    val coroutineScope = rememberCoroutineScope()
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                processImageFromUri(uri, context, isBatchScan, scannedQRs, dao) { qrInfo ->
+                    if (qrInfo != null) {
+                        if (!isBatchScan) {
+                            val intent = Intent(context, ResultScanActivity::class.java)
+                            intent.putExtra("scan_result", qrInfo.value )
+                            intent.putExtra("scan_type", qrInfo.type)
+                            intent.putExtra("qr_image_uri", qrInfo.imageUri.toString())
+                            context.startActivity(intent)
+                        } else {
+                            val intent = Intent(context, ResultScanActivity::class.java)
+                            intent.putExtra("scan_result", qrInfo.value )
+                            intent.putExtra("scan_type", qrInfo.type)
+                            intent.putExtra("qr_image_uri", qrInfo.imageUri.toString())
+                            context.startActivity(intent)
+                        }
+                    } else {
+                        Log.d("QrScannerScreen", "Không tìm thấy mã QR trong ảnh")
+                    }
+                }
+            }
+        }
+    }
+    val multiQrLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val updatedQrList = result.data?.getParcelableArrayListExtra<QrCodeInfo>("updated_qr_list") ?: arrayListOf()
+            scannedQRs.clear()
+            scannedQRs.addAll(updatedQrList)
+            // Cập nhật latestQR dựa trên danh sách mới
+            latestQR = if (updatedQrList.isNotEmpty()) {
+                Pair(updatedQrList.size, updatedQrList.last().value)
+            } else {
+                null
+            }
+            Log.d("QrScannerScreen", "Cập nhật scannedQRs từ back: size=${updatedQrList.size}")
+        }
+    }
     LaunchedEffect(Unit) {
         if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
     }
@@ -90,7 +133,9 @@ fun QrScannerScreen() {
         scannedQRs.clear()
         latestQR = null
     }
-
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        isScanning = true
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -107,25 +152,26 @@ fun QrScannerScreen() {
                             setSurfaceProvider(previewView.surfaceProvider)
                         }
                         val analyzer = ImageAnalysis.Builder()
+                            .setTargetResolution(Size(1280, 1280))
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
                         val scanner = BarcodeScanning.getClient()
                         val executor = Executors.newSingleThreadExecutor()
                         analyzer.setAnalyzer(executor) { imageProxy: ImageProxy ->
                             if (isScanning) {
-                                processImageProxy(scanner, imageProxy, isBatchScan, ctx, scannedQRs) { isBatch, qrValue, qrUri ->
+                                processImageProxy(scanner, imageProxy, isBatchScan, ctx, scannedQRs,dao) { isBatch, qrInfo ->
                                     if (!isBatch) {
-                                        isScanning = false
-                                        if (qrValue != null && qrUri != null) {
-
+                                        if (qrInfo?.value != null && qrInfo.imageUri!= null) {
                                             val intent = Intent(ctx, ResultScanActivity::class.java)
-                                            intent.putExtra("scan_result", qrValue)
-                                            intent.putExtra("scan_type", Barcode.TYPE_TEXT) // Update type if needed
-                                            intent.putExtra("qr_image_uri", qrUri.toString())
+                                            intent.putExtra("scan_result", qrInfo.value )
+                                            intent.putExtra("scan_type", qrInfo.type) // Update type if needed
+                                            intent.putExtra("qr_image_uri", qrInfo.imageUri.toString())
                                             ctx.startActivity(intent)
+                                            isScanning=false
+
                                         }
-                                    } else if (qrValue != null) {
-                                        latestQR = Pair(scannedQRs.size, qrValue)
+                                    } else if (qrInfo != null) {
+                                        latestQR = Pair(scannedQRs.size, qrInfo.value)
                                     }
 
                                 }
@@ -178,12 +224,12 @@ fun QrScannerScreen() {
                             modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                         )
                         IconButton(onClick = {
-                            val intent = Intent(context, ResultMultiQrActivity::class.java)
-                            intent.putStringArrayListExtra("scan_results", ArrayList(scannedQRs))
-                            context.startActivity(intent)
+                            val intent = Intent(context, ResultMultiQrHostActivity::class.java)
+                            intent.putParcelableArrayListExtra("scan_results", ArrayList(scannedQRs))
+                            multiQrLauncher.launch(intent)
                         }) {
                             Icon(
-                                painter = painterResource(id = android.R.drawable.ic_media_next),
+                                painter = painterResource(id = R.drawable.ic_media_next),
                                 contentDescription = "View QR Details",
                                 tint = Color.White
                             )
@@ -212,12 +258,12 @@ fun QrScannerScreen() {
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { /* Open Gallery */ }) {
+                    IconButton(onClick = { galleryLauncher.launch("image/*") }) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.gallery),
+                                painter = painterResource(id = com.example.myapplication.R.drawable.gallery),
                                 contentDescription = "Gallery",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
@@ -230,19 +276,23 @@ fun QrScannerScreen() {
                             )
                         }
                     }
-                    IconButton(onClick = { /* Toggle Flashlight */ }) {
+                    IconButton(onClick = {
+                        isFlashLight=!isFlashLight
+                        camera?.cameraControl?.enableTorch(isFlashLight)
+
+                    }) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.flashlight),
+                                painter = painterResource(id = com.example.myapplication.R.drawable.flashlight),
                                 contentDescription = "Flashlight",
-                                tint = Color.White,
+                                tint = if(isFlashLight)Color.Blue else Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = "Flashlight",
-                                color = Color.White,
+                                color = if(isFlashLight)Color.Blue else Color.White,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(4.dp)
                             )
@@ -255,14 +305,14 @@ fun QrScannerScreen() {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.batch),
+                                painter = painterResource(id = com.example.myapplication.R.drawable.batch),
                                 contentDescription = "Batch",
-                                tint = Color.White,
+                                tint = if(isBatchScan) Color.Blue else Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = "Batch",
-                                color = Color.White,
+                                color = if(isBatchScan) Color.Blue else Color.White,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(4.dp)
                             )
@@ -278,7 +328,11 @@ fun QrScannerScreen() {
     }
 
     DisposableEffect(Unit) {
+        isScanning = true
+        Log.d("QrScannerScreen", "Bắt đầu quét")
         onDispose {
+            Log.d("QrScannerScreen", "Dừng quét, giải phóng resource")
+
             isScanning = true
             scannedQRs.clear()
             latestQR = null
@@ -359,142 +413,4 @@ fun ZoomSliderDemo(zoom: Float, onZoomChange: (Float) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalGetImage::class)
-private fun processImageProxy(
-    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
-    imageProxy: ImageProxy,
-    isBatchScan: Boolean,
-    context: android.content.Context,
-    scannedQRs: MutableSet<String>,
-    onProcessed: (Boolean, String?, Uri?) -> Unit
-) {
-    val mediaImage = imageProxy.image
-    if (mediaImage != null) {
-        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        scanner.process(image)
-            .addOnSuccessListener { barcodes ->
-                if (isBatchScan) {
-                    for (barcode in barcodes) {
-                        val rawValue = barcode.rawValue ?: continue
-                        if (!scannedQRs.contains(rawValue)) {
-                            scannedQRs.add(rawValue)
-                            val qrUri = extractQRImage(imageProxy, barcode, context)
-                            onProcessed(true, rawValue, qrUri)
-                        }
-                    }
-                    onProcessed(true, null, null)
-                } else {
-                    if (barcodes.isNotEmpty()) {
-                        val barcode = barcodes[0]
-                        val rawValue = barcode.rawValue ?: return@addOnSuccessListener
-                        if (!scannedQRs.contains(rawValue)) {
-                            scannedQRs.add(rawValue)
-                            val qrUri = extractQRImage(imageProxy, barcode, context)
-                            val db = Room.databaseBuilder(
-                                context,
-                                AppDatabase::class.java,
-                                "my_app_db"
-                            ).build()
-
-                            val dao = db.qrScanDao()
-
-                            CoroutineScope(Dispatchers.IO).launch {
-                                dao.insert(
-                                    QrScanEntity(
-                                        value = rawValue,
-                                        type = barcode.valueType,
-                                        imagePath = qrUri?.path ?: ""
-                                    )
-                                )
-                            }
-                            onProcessed(false, rawValue, qrUri)
-                        }
-                    }
-                }
-            }
-            .addOnCompleteListener { imageProxy.close() }
-    } else {
-        imageProxy.close()
-    }
-}
-
-@OptIn(ExperimentalGetImage::class)
-private fun extractQRImage(imageProxy: ImageProxy, barcode: Barcode, context: android.content.Context): Uri? {
-    try {
-        val mediaImage = imageProxy.image ?: return null
-        // Convert ImageProxy to Bitmap
-        val bitmap = imageProxyToBitmap(imageProxy) ?: return null
-        val boundingBox = barcode.boundingBox ?: return null
-        val croppedBitmap = Bitmap.createBitmap(
-            bitmap,
-            boundingBox.left.coerceAtLeast(0),
-            boundingBox.top.coerceAtLeast(0),
-            boundingBox.width().coerceAtMost(bitmap.width - boundingBox.left),
-            boundingBox.height().coerceAtMost(bitmap.height - boundingBox.top)
-        )
-//        // Save cropped Bitmap to temporary file
-//        val tempFile = File(context.cacheDir, "qr_${System.currentTimeMillis()}.png")
-//        tempFile.outputStream().use { output ->
-//            croppedBitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-//        }
-//        // Create URI from temporary file
-//        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
-        val imagePath = saveBitmapToInternalStorage(context, croppedBitmap)
-        return if (imagePath != null) Uri.fromFile(File(imagePath)) else null
-
-    } catch (e: Exception) {
-        Log.e("QrScanner", "Failed to extract QR image", e)
-        return null
-    }
-}
-
-private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
-    val image = imageProxy.image ?: return null
-    if (image.format != ImageFormat.YUV_420_888) return null
-
-    val yBuffer = image.planes[0].buffer
-    val uBuffer = image.planes[1].buffer
-    val vBuffer = image.planes[2].buffer
-
-    val ySize = yBuffer.remaining()
-    val uSize = uBuffer.remaining()
-    val vSize = vBuffer.remaining()
-
-    val nv21 = ByteArray(ySize + uSize + vSize)
-
-    yBuffer.get(nv21, 0, ySize)
-    vBuffer.get(nv21, ySize, vSize)
-    uBuffer.get(nv21, ySize + vSize, uSize)
-
-    val yuvImage = android.graphics.YuvImage(
-        nv21, ImageFormat.NV21, image.width, image.height, null
-    )
-    val out = java.io.ByteArrayOutputStream()
-    yuvImage.compressToJpeg(android.graphics.Rect(0, 0, image.width, image.height), 100, out)
-    val jpegBytes = out.toByteArray()
-    var bitmap = android.graphics.BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
-
-    val matrix = android.graphics.Matrix().apply {
-        postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-    }
-    bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-
-    return bitmap
-}
-private fun saveBitmapToInternalStorage(
-    context: android.content.Context,
-    bitmap: Bitmap
-): String? {
-    return try {
-        val filename = "qr_${System.currentTimeMillis()}.png"
-        val file = File(context.filesDir, filename)
-        file.outputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-        }
-        file.absolutePath  // trả về path để lưu DB
-    } catch (e: Exception) {
-        Log.e("QrScanner", "Error saving bitmap", e)
-        null
-    }
-}
 

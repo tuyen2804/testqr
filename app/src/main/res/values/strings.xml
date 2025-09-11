@@ -3,4 +3,5 @@
     <string name="title_activity_result_scan">ResultScanActivity</string>
     <string name="title_activity_result_multi_qr">ResultMultiQrActivity</string>
     <string name="title_activity_result_multi_qr_detail">ResultMultiQrDetailActivity</string>
+    <string name="title_activity_result_multi_qr_host">ResultMultiQrHostActivity</string>
 </resources>
