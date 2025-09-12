@@ -55,7 +55,7 @@ fun ResultDeleteMultiQrScreen(viewModel: ResultMultiQrViewModel) {
                     IconButton(onClick = { viewModel.exitDeleteMode() }) {
                         Icon(
                             painter = painterResource(R.drawable.back),
-                            tint = Color.White,
+                            tint = Color.Black,
                             contentDescription = "Back",
                             modifier = Modifier.size(20.dp)
                         )
@@ -73,7 +73,9 @@ fun ResultDeleteMultiQrScreen(viewModel: ResultMultiQrViewModel) {
                     IconButton(onClick = { viewModel.deleteSelected() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.delete),
-                            contentDescription = "Delete selected items"
+                            contentDescription = "Delete selected items",
+                            modifier = Modifier.size(20.dp)
+
                         )
                     }
                 }
@@ -93,7 +95,7 @@ fun ResultDeleteMultiQrScreen(viewModel: ResultMultiQrViewModel) {
 @Composable
 fun QrListSelectScreen(
     isShowDetail: Boolean,
-    qrList: List<QrCodeInfo>, // Thay đổi thành List<QrCodeInfo>
+    qrList: List<QrCodeInfo>,
     selectedItems: Set<Int>,
     onSelectedItemsChange: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -105,7 +107,7 @@ fun QrListSelectScreen(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(qrList) { index, qrInfo -> // Thay đổi thành qrInfo: QrCodeInfo
+        itemsIndexed(qrList) { index, qrInfo ->
             val isSelected = selectedItems.contains(index)
             val toggle: (Boolean) -> Unit = { checked ->
                 onSelectedItemsChange(index)
@@ -113,7 +115,7 @@ fun QrListSelectScreen(
 
             if (isShowDetail) {
                 DetailQrListItemSelect(
-                    qrInfo = qrInfo, // Thay đổi thành qrInfo
+                    qrInfo = qrInfo,
                     index = index,
                     isSelected = isSelected,
                     onCheckedChange = toggle

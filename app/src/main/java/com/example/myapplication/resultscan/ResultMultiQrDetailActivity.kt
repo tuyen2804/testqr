@@ -1,11 +1,15 @@
 package com.example.myapplication.resultscan
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,21 +32,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import coil.compose.rememberAsyncImagePainter
 import com.example.myapplication.R
 import com.example.myapplication.history.getBarcodeTypeString
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.google.mlkit.vision.barcode.common.Barcode
+import java.io.File
 
 class ResultMultiQrDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val result = intent.getStringExtra("scan_result") ?: ""
         val type = intent.getIntExtra("scan_type", Barcode.TYPE_TEXT)
         val qrImageUri = intent.getStringExtra("qr_image_uri")?.let { Uri.parse(it) }
+        Log.d("ResultMultiQrDetailActivity", "qrImageUri: $qrImageUri, scheme: ${qrImageUri?.scheme}")
         enableEdgeToEdge()
 
-        val qrValue = intent.getStringExtra("qr_value") ?: "https://example.com"
+        val qrValue = intent.getStringExtra("scan_result") ?: "https://example.com"
 
         setContent {
             MyApplicationTheme {
@@ -59,7 +65,7 @@ class ResultMultiQrDetailActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () -> Unit) {
+fun DetailQrScreen(qrType: String, qrValue: String, imageQrUri: Uri?, onBack: () -> Unit) {
     val context = LocalContext.current
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -71,12 +77,26 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted && imageQrUri != null) {
-            val bitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, imageQrUri)
-            saveBitmapToGallery(context, bitmap)
+            try {
+                val bitmap = if (imageQrUri.scheme == "file") {
+                    BitmapFactory.decodeFile(imageQrUri.path)
+                } else {
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, imageQrUri)
+                }
+                if (bitmap != null) {
+                    saveBitmapToGallery(context, bitmap)
+                } else {
+                    Toast.makeText(context, "Không thể tải ảnh QR", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("DetailQrScreen", "Lỗi khi lấy bitmap: ${e.message}", e)
+                Toast.makeText(context, "Lỗi tải ảnh: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         } else {
             Toast.makeText(context, "Bạn cần cấp quyền để lưu ảnh", Toast.LENGTH_SHORT).show()
         }
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -86,7 +106,8 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
                         Icon(
                             painter = painterResource(id = R.drawable.back),
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 },
@@ -95,7 +116,8 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
                         Icon(
                             painter = painterResource(id = R.drawable.star),
                             contentDescription = "Settings",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 },
@@ -149,13 +171,28 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
             ) {
                 Button(
                     onClick = {
-                        if (ContextCompat.checkSelfPermission(context, permission)
-                            == PackageManager.PERMISSION_GRANTED
-                        ) {
+                        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
                             imageQrUri?.let { uri ->
-                                val bitmap =
-                                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-                                saveBitmapToGallery(context, bitmap)
+                                try {
+                                    Log.d("DetailQrScreen", uri.toString())
+
+                                    val bitmap = if (uri.scheme == "file") {
+                                        BitmapFactory.decodeFile(uri.path)
+                                    } else {
+                                        MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                                    }
+
+                                    if (bitmap != null) {
+                                        saveBitmapToGallery(context, bitmap)
+                                    } else {
+                                        Toast.makeText(context, "Không thể tải ảnh QR", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("DetailQrScreen", "Lỗi khi lấy bitmap: ${e.message}", e)
+                                    Toast.makeText(context, "Lỗi tải ảnh: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            } ?: run {
+                                Toast.makeText(context, "Không có ảnh QR để lưu", Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             launcher.launch(permission)
@@ -175,7 +212,53 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
                 }
 
                 Button(
-                    onClick = { /* share */ },
+                    onClick = {
+                        if (imageQrUri != null) {
+                            try {
+                                // Read bitmap from Uri
+                                val inputStream = context.contentResolver.openInputStream(imageQrUri)
+                                val bitmap = BitmapFactory.decodeStream(inputStream)
+
+                                if (bitmap != null) {
+                                    // Create cache/images directory
+                                    val cachePath = File(context.cacheDir, "images")
+                                    cachePath.mkdirs()
+
+                                    // Write bitmap to temporary file
+                                    val file = File(cachePath, "qr_share.png")
+                                    file.outputStream().use { stream ->
+                                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                                    }
+
+                                    // Log file details
+                                    Log.d("DetailQrScreen", "File path: ${file.absolutePath}, exists: ${file.exists()}")
+
+                                    // Get contentUri via FileProvider
+                                    val contentUri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.provider",
+                                        file
+                                    )
+                                    Log.d("DetailQrScreen", "Content URI: $contentUri")
+
+                                    // Share Intent
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "image/*"
+                                        putExtra(Intent.EXTRA_STREAM, contentUri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, "Chia sẻ QR Code"))
+                                } else {
+                                    Toast.makeText(context, "Không thể đọc QR", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Log.e("DetailQrScreen", "Lỗi share: ${e.message}", e)
+                                Toast.makeText(context, "Không thể chia sẻ ảnh: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "Không có ảnh QR để chia sẻ", Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -191,7 +274,6 @@ fun DetailQrScreen(qrType:String, qrValue: String, imageQrUri: Uri?, onBack: () 
             }
 
             Spacer(modifier = Modifier.weight(1f))
-
         }
     }
 }

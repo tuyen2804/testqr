@@ -32,16 +32,16 @@ class ResultScanActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(innerPadding)) {
                         when (type) {
                             Barcode.TYPE_TEXT -> TextResultScreen(result,qrImageUri)
-                            Barcode.TYPE_URL -> UrlResultScreen(result)
-                            Barcode.TYPE_CONTACT_INFO -> ContactResultScreen(result)
-                            Barcode.TYPE_EMAIL -> EmailResultScreen(result)
-                            Barcode.TYPE_PHONE -> PhoneResultScreen(result)
-                            Barcode.TYPE_SMS -> SmsResultScreen(result)
-                            Barcode.TYPE_WIFI -> WifiResultScreen(result)
-                            Barcode.TYPE_DRIVER_LICENSE -> DriverLicenseScreen(result)
-                            Barcode.TYPE_GEO -> GeoResultScreen(result)
-                            Barcode.TYPE_PRODUCT -> ProductResultScreen(result)
-                            Barcode.TYPE_CALENDAR_EVENT -> CalendarEventResultScreen(result)
+                            Barcode.TYPE_URL -> UrlResultScreen(result,qrImageUri)
+                            Barcode.TYPE_CONTACT_INFO -> ContactResultScreen(result,qrImageUri)
+                            Barcode.TYPE_EMAIL -> EmailResultScreen(result,qrImageUri)
+                            Barcode.TYPE_PHONE -> PhoneResultScreen(result,qrImageUri)
+                            Barcode.TYPE_SMS -> SmsResultScreen(result,qrImageUri)
+                            Barcode.TYPE_WIFI -> WifiResultScreen(result,qrImageUri)
+                            Barcode.TYPE_DRIVER_LICENSE -> DriverLicenseScreen(result,qrImageUri)
+                            Barcode.TYPE_GEO -> GeoResultScreen(result,qrImageUri)
+                            Barcode.TYPE_PRODUCT -> ProductResultScreen(result,qrImageUri)
+                            Barcode.TYPE_CALENDAR_EVENT -> CalendarEventResultScreen(result,qrImageUri)
                             else -> TextResultScreen(result,qrImageUri)
                         }
                     }

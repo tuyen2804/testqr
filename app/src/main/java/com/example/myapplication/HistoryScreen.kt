@@ -49,7 +49,7 @@ fun HistoryScreen(
             items = items,
             onEnterSelect = { selectMode = true },
             onDeleteById = { id -> viewModel.deleteById(id) },
-            onDeleteAll = { viewModel.deleteAll() }
+            onDeleteAll = { selectMode=true }
         )
     }
 }

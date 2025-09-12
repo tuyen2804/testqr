@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -26,13 +27,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.rememberAsyncImagePainter
 import com.example.myapplication.R
 import com.example.myapplication.resultscan.widget.ButtonData
 import com.example.myapplication.resultscan.widget.CustomButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhoneResultScreen(result: String) {
+fun PhoneResultScreen(result: String, qrImageUri: Uri?) {
     val context = LocalContext.current
 
     Column(
@@ -128,12 +130,10 @@ fun PhoneResultScreen(result: String) {
 
             val buttonList = listOf(
                 ButtonData(R.drawable.telephone, "Call") {
-                    // Gọi số điện thoại
                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$result"))
                     context.startActivity(Intent.createChooser(intent, "Call Phone Number"))
                 },
                 ButtonData(R.drawable.contacts, "Add to contacts") {
-                    // Thêm vào danh bạ
                     val intent = Intent(Intent.ACTION_INSERT).apply {
                         type = "vnd.android.cursor.dir/contact"
                         putExtra(android.provider.ContactsContract.Intents.Insert.PHONE, result)
@@ -141,13 +141,11 @@ fun PhoneResultScreen(result: String) {
                     context.startActivity(Intent.createChooser(intent, "Add to Contacts"))
                 },
                 ButtonData(R.drawable.copy, "Copy") {
-                    // Sao chép số điện thoại vào clipboard
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("Phone Number", result)
                     clipboard.setPrimaryClip(clip)
                 },
                 ButtonData(R.drawable.share, "Share") {
-                    // Chia sẻ số điện thoại
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, result)
@@ -173,27 +171,21 @@ fun PhoneResultScreen(result: String) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Card(
-                modifier = Modifier
-                    .size(120.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Box(
+            qrImageUri?.let {
+                Image(
+                    painter = rememberAsyncImagePainter(it),
+                    contentDescription = "QR Code",
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .background(Color.Black)
-                    )
-                }
-            }
+                        .size(120.dp)
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .padding(8.dp)
+                )
+            } ?: Text(
+                text = "Unable to display QR code",
+                color = Color.Gray,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

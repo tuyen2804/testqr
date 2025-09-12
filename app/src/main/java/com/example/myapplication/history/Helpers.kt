@@ -5,12 +5,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-fun typeToString(type: Int): String = when (type) {
-    0 -> "Text"
-    1 -> "URL"
-    2 -> "Product"
-    else -> "Other"
-}
 
 fun formatDate(millis: Long, pattern: String): String {
     val sdf = SimpleDateFormat(pattern, Locale.getDefault())
@@ -34,7 +28,7 @@ fun getBarcodeTypeString(type: Int): String {
         Barcode.FORMAT_CODE_128 -> "Code 128"
         Barcode.FORMAT_CODE_39 -> "Code 39"
         Barcode.FORMAT_CODE_93 -> "Code 93"
-        Barcode.FORMAT_CODABAR -> "Codabar"
+        Barcode.FORMAT_CODABAR -> "URL"
         Barcode.FORMAT_DATA_MATRIX -> "Data Matrix"
         Barcode.FORMAT_EAN_13 -> "EAN-13"
         Barcode.FORMAT_EAN_8 -> "EAN-8"
@@ -59,8 +53,8 @@ fun getBarcodeTypeString(type: Int): String {
         Barcode.TYPE_GEO -> "Geo Location"
         Barcode.TYPE_CALENDAR_EVENT -> "Calendar Event"
         Barcode.TYPE_DRIVER_LICENSE -> "Driver License"
-        Barcode.TYPE_UNKNOWN -> "Unknown"
+        Barcode.TYPE_UNKNOWN -> "Text"
 
-        else -> "Unknown"
+        else -> "Text"
     }
 }

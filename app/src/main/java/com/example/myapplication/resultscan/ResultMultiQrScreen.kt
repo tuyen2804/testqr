@@ -70,13 +70,16 @@ fun ResultMultiQrScreen(viewModel: ResultMultiQrViewModel) {
                             painter = painterResource(
                                 id = if (showDetail) R.drawable.information else R.drawable.text
                             ),
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+
                         )
                     }
                     IconButton(onClick = { viewModel.enterDeleteMode() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.delete),
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -134,7 +137,7 @@ fun QrListItem(qrInfo: QrCodeInfo, index: Int, onClick: () -> Unit) { // Thay đ
         ) {
             // Icon QR
             Icon(
-                painter = painterResource(id = R.drawable.share),
+                painter = painterResource(id = R.drawable.qr),
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(30.dp)
@@ -182,7 +185,7 @@ fun DetailQrListItem(qrInfo: QrCodeInfo, index: Int, onClick: () -> Unit) { // T
             Icon(
                 painter = painterResource(id = R.drawable.qr),
                 contentDescription = null,
-                tint = Color.White,
+                tint = Color.Blue,
                 modifier = Modifier.size(30.dp)
             )
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Checkbox
@@ -46,8 +47,12 @@ fun HistoryListScreen(
     onDeleteAll: () -> Unit
 ) {
     var filterExpanded by remember { mutableStateOf(false) }
-    val filterOptions = listOf("URL", "Text", "Product", "Youtube", "Barcode")
     var selectedFilters by remember { mutableStateOf(setOf<String>()) }
+
+    // 🔥 Tạo filterOptions động theo dữ liệu có trong list
+    val filterOptions = remember(items) {
+        items.map { getBarcodeTypeString(it.type) }.distinct()
+    }
 
     Scaffold(
         topBar = {
@@ -59,7 +64,8 @@ fun HistoryListScreen(
                             Icon(
                                 painter = painterResource(id = R.drawable.filter),
                                 contentDescription = "Filter",
-                                tint = Color.White
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                         DropdownMenu(
@@ -93,7 +99,6 @@ fun HistoryListScreen(
                                         }
                                     },
                                     onClick = {
-                                        // toggle khi click row
                                         selectedFilters =
                                             if (checked) selectedFilters - option
                                             else selectedFilters + option
@@ -106,7 +111,9 @@ fun HistoryListScreen(
                         Icon(
                             painter = painterResource(id = R.drawable.delete),
                             contentDescription = "Delete All",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+
                         )
                     }
                 },
@@ -115,15 +122,11 @@ fun HistoryListScreen(
         },
         containerColor = Color(0xFF121212)
     ) { padding ->
+
         val filteredItems = if (selectedFilters.isEmpty()) {
             items
         } else {
-            items.filter { qr ->
-                when (getBarcodeTypeString(qr.type)) {
-                    in selectedFilters -> true
-                    else -> false
-                }
-            }
+            items.filter { qr -> getBarcodeTypeString(qr.type) in selectedFilters }
         }
 
         if (filteredItems.isEmpty()) {

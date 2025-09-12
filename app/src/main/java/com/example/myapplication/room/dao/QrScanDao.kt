@@ -10,8 +10,8 @@ interface QrScanDao {
     @Insert
     suspend fun insert(qrScan: QrScanEntity)
 
-    @Query("SELECT * FROM result_scan")
-    suspend fun getAll(): List<QrScanEntity>
+    @Query("SELECT * FROM result_scan ORDER BY createdAt DESC")
+    fun getAll(): kotlinx.coroutines.flow.Flow<List<QrScanEntity>>
 
     @Query("DELETE FROM result_scan WHERE id = :id")
     suspend fun deleteById(id: Int)

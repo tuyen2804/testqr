@@ -4,4 +4,6 @@
     <string name="title_activity_result_multi_qr">ResultMultiQrActivity</string>
     <string name="title_activity_result_multi_qr_detail">ResultMultiQrDetailActivity</string>
     <string name="title_activity_result_multi_qr_host">ResultMultiQrHostActivity</string>
+    <string name="title_activity_create">CreateActivity</string>
+    <string name="title_activity_history">HistoryActivity</string>
 </resources>

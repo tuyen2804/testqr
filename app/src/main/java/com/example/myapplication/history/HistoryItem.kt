@@ -84,13 +84,6 @@ fun HistoryItem(entity: QrScanEntity, onDelete: (Int) -> Unit) {
                 fontSize = 12.sp
             )
 
-            IconButton(onClick = { onDelete(entity.id) }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.delete),
-                    contentDescription = "Delete",
-                    tint = Color.Red
-                )
-            }
         }
     }
 }

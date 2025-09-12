@@ -111,7 +111,6 @@ fun QrScannerScreen() {
             val updatedQrList = result.data?.getParcelableArrayListExtra<QrCodeInfo>("updated_qr_list") ?: arrayListOf()
             scannedQRs.clear()
             scannedQRs.addAll(updatedQrList)
-            // Cập nhật latestQR dựa trên danh sách mới
             latestQR = if (updatedQrList.isNotEmpty()) {
                 Pair(updatedQrList.size, updatedQrList.last().value)
             } else {
